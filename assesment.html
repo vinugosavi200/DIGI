@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hierarchical Tree Formation</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+        }
+
+        #tree-container {
+            border: 1px solid #ccc;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+
+        #controls {
+            margin-bottom: 20px;
+        }
+
+        button {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <label for="nodeType">Node Type:</label>
+        <select id="nodeType">
+            <option value="parent">Parent</option>
+            <option value="child">Child</option>
+            <option value="single">Single</option>
+        </select>
+
+        <label for="nodeValue">Node Value:</label>
+        <input type="text" id="nodeValue">
+
+        <button onclick="addNode()">Add Node</button>
+    </div>
+
+    <div id="tree-container"></div>
+
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script>
+        // Tree data structure
+        const treeData = {
+            name: "Root",
+            children: []
+        };
+
+        // Initialize tree layout
+        const treeLayout = d3.tree().size([800, 400]);
+
+        // Initialize tree root
+        const rootNode = d3.hierarchy(treeData);
+
+        // Initialize tree nodes
+        treeLayout(rootNode);
+
+        // Initialize SVG container for the tree
+        const svgContainer = d3.select("#tree-container").append("svg")
+            .attr("width", 900)
+            .attr("height", 500)
+            .append("g")
+            .attr("transform", "translate(50,20)");
+
+        // Function to update tree on adding a node
+        function updateTree() {
+            const nodes = rootNode.descendants();
+            const links = rootNode.links();
+
+            // Update nodes
+            const node = svgContainer.selectAll("g.node")
+                .data(nodes, d => d.id || (d.id = ++i));
+
+            // Enter any new nodes at the parent's previous position
+            const nodeEnter = node.enter().append("g")
+                .attr("class", "node")
+                .attr("transform", d => `translate(${d.y},${d.x})`);
+
+            nodeEnter.append("circle")
+                .attr("r", 10)
+                .style("fill", "#fff");
+
+            nodeEnter.append("text")
+                .attr("dy", "0.35em")
+                .attr("x", d => d.children ? -13 : 13)
+                .attr("text-anchor", d => d.children ? "end" : "start")
+                .text(d => d.data.name);
+
+            // Update links
+            const link = svgContainer.selectAll("path.link")
+                .data(links, d => d.target.id);
+
+            link.enter().insert("path", "g")
+                .attr("class", "link")
+                .attr("d", d3.linkHorizontal()
+                    .x(d => d.y)
+                    .y(d => d.x));
+
+            // Transition nodes to their new position
+            const nodeUpdate = node.merge(nodeEnter).transition()
+                .duration(500)
+                .attr("transform", d => `translate(${d.y},${d.x})`);
+
+            // Transition exiting nodes to the parent's new position
+            node.exit().transition()
+                .duration(500)
+                .attr("transform", d => `translate(${rootNode.y},${rootNode.x})`)
+                .remove();
+
+            // Update the links
+            link.transition()
+                .duration(500)
+                .attr("d", d3.linkHorizontal()
+                    .x(d => d.y)
+                    .y(d => d.x));
+        }
+
+        // Function to add a node based on user input
+        function addNode() {
+            const nodeType = document.getElementById("nodeType").value;
+            const nodeValue = document.getElementById("nodeValue").value;
+
+            if (!nodeValue) {
+                alert("Please enter a node value");
+                return;
+            }
+
+            let newNode;
+            if (nodeType === "parent") {
+                newNode = { name: nodeValue, children: [] };
+                rootNode.children.push(newNode);
+            } else if (nodeType === "child") {
+                const selectedNode = d3.select(".selected").datum();
+                if (selectedNode) {
+                    newNode = { name: nodeValue, children: [] };
+                    selectedNode.children.push(newNode);
+                } else {
+                    alert("Please select a parent node");
+                    return;
+                }
+            } else {
+                newNode = { name: nodeValue };
+                treeData.children.push(newNode);
+            }
+
+            updateTree();
+        }
+
+        // Initial tree update
+        updateTree();
+
+        // Add click event listener to nodes for selecting parent node
+        svgContainer.selectAll("g.node").on("click", function () {
+            svgContainer.selectAll("g.node").classed("selected", false);
+            d3.select(this).classed("selected", true);
+        });
+    </script>
+</body>
+</html>
